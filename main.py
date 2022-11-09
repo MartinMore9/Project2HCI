@@ -4,12 +4,15 @@ import http.client
 import json
 import requests
 import streamlit.components.v1 as components
+import matplotlib
 import time
 
 import streamlit as st
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from streamlit_lottie import st_lottie
+from PIL import ImageColor
 from dateutil.relativedelta import relativedelta
 from datetime import timezone
 from collections import namedtuple
@@ -277,22 +280,57 @@ def fillBarChart():
 
 #############################################################################
 
+def load_lottieurl(url):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
+
+lottie_coding = load_lottieurl("https://assets2.lottiefiles.com/packages/lf20_ky03n5aXvs.json")
+
+#############################################################################
+
 df = fillDataFrame()
 lc = fillLineChart()
 bc = fillBarChart()
 
 #############################################################################
 
+filteredTeams = st.multiselect('Select Team(s):', options=teamOptions, default="Paris Saint Germain")
 
-st.sidebar.title("Filters")
-filteredTeams = st.sidebar.multiselect('Select Team(s):', options=teamOptions, default="Paris Saint Germain")
-filteredMatches = st.sidebar.radio("Filter Data Table by outcome: ", ("All", "Home Team Wins", "Away Team Wins", "Draw"))
+if st.button('Help?'):
+    st.info('Hit the dropdown and select any teams you would like to know information about in the Champions League', icon="ℹ️")
+
+
+if len(filteredTeams) == 0:
+    st.warning('Warning no team selected!!', icon="⚠️")
+
+with st.container():
+    st.write("---")
+    st.header("Data Frame")
+    bar_column, line_column, test_column = st.columns((1,2,2))
+    with bar_column:
+        filteredMatches = st.radio("Filter Data Table by outcome: ", ("All", "Home Team Wins", "Away Team Wins", "Draw"))
+    with line_column:
+        datetime_str = '22/01/01'
+        datetime_object = datetime.strptime(datetime_str, '%y/%m/%d')
+        filteredFromDate = st.date_input("From Date", value=datetime_object)
+        color = st.color_picker('Pick a color for table:', '#FFFFFF')
+        #filteredToDate = st.date_input("To Date")
+    with test_column:
+        filteredToDate = st.date_input("To Date")
+        textColor = st.color_picker('Pick a color for table text:', '#000000')
+    #st.write("---")
+
+#st.sidebar.title("Filters")
+#filteredTeams = st.sidebar.multiselect('Select Team(s):', options=teamOptions, default="Paris Saint Germain")
+#filteredMatches = st.sidebar.radio("Filter Data Table by outcome: ", ("All", "Home Team Wins", "Away Team Wins", "Draw"))
 #displayStandings = st.sidebar.checkbox("Display Champions League Standings")
 
-datetime_str = '22/01/01'
-datetime_object = datetime.strptime(datetime_str, '%y/%m/%d')
-filteredFromDate = st.sidebar.date_input("From Date", value= datetime_object)
-filteredToDate = st.sidebar.date_input("To Date")
+# datetime_str = '22/01/01'
+# datetime_object = datetime.strptime(datetime_str, '%y/%m/%d')
+# filteredFromDate = st.sidebar.date_input("From Date", value= datetime_object)
+# filteredToDate = st.sidebar.date_input("To Date")
 
 #################################################################################
 
@@ -309,31 +347,28 @@ match filteredMatches:
     case "Draw":
         df_selection = df_selection.query("`Home Team Goals` == `Away Team Goals`")
 
-#df_selection = df_selection.query("@filteredFromDate <= `Date`")
-#print(df_selection.where())
 df_selection["Date"] = pd.to_datetime(df_selection['Date'])
 df_selection["Date"] = df_selection['Date'].dt.date
 df_selection = df_selection.query("@filteredFromDate <= `Date` <= @filteredToDate")
-#df_selection = df_selection["Date"].between(filteredFromDate, filteredToDate)
-print(df_selection)
-
-#df_selection = df_selection.query("")
-#lc_selection = lc.query(index = "@filteredTeams")
-#lc_selection = lc.loc[0].loc[filteredTeams]
 lc_selection = lc.loc[:,filteredTeams]
 bc_selection = bc.loc[:,filteredTeams]
-#lc_selection = lc.loc[filteredTeams]
-#lc_selection = lc_selection.
-#print(lc_selection)
-#print(venueList)
-st.header("Data Frame")
-st.dataframe(df_selection)
-#st.dataframe(bc_selection)
-# st.header("Bar Chart - Goals per game")
-# st.bar_chart(bc_selection)
-# #st.dataframe(lc_selection)
-# st.header("Line Chart - Average Goals per game")
-# st.line_chart(lc_selection)
+
+
+with st.container():
+    dataFrame_column, lottie_column = st.columns((3,1))
+    with dataFrame_column:
+        if len(filteredTeams) == 0:
+            st.error('Error!! No team provided!!', icon="🚨")
+        else:
+            #st.dataframe(df_selection)
+            temp = ImageColor.getcolor(color,"RGB")
+            tempText = ImageColor.getcolor(textColor, "RGB")
+            colorStr = "rgb(" + str(temp[0]) + "," + str(temp[1]) + "," + str(temp[2]) + ")"
+            textColorStr = "rgb(" + str(tempText[0]) + "," + str(tempText[1]) + "," + str(tempText[2]) + ")"
+            st.dataframe(df_selection.style.set_properties(**{'background-color': colorStr, 'color': textColorStr}))
+
+    with lottie_column:
+        st_lottie(lottie_coding, width= 350, key="coding")
 
 
 with st.container():
@@ -341,10 +376,18 @@ with st.container():
     bar_column, line_column = st.columns((1,1))
     with bar_column:
         st.header("Bar Chart - Goals per game")
-        st.bar_chart(bc_selection)
+        if len(filteredTeams) == 0:
+            st.error('Error!! No team provided!!', icon="🚨")
+        else:
+            st.bar_chart(bc_selection)
+
     with line_column:
         st.header("Line Chart - Average Goals per game")
-        st.line_chart(lc_selection)
+        if len(filteredTeams) == 0:
+            st.error('Error!! No team provided!!', icon="🚨")
+        else:
+            st.line_chart(lc_selection)
+
     st.write("---")
 
 st.header("Champions League Standings")
@@ -363,8 +406,3 @@ if displayStandings:
     st.map(mp)
 st.write("---")
 
-# mp = fillMap()
-# st.map(mp)
-
-
-#print(mapData)
