@@ -1,14 +1,17 @@
 #import requests
 #7b6086e0fd1b597a93b193c8dc03a8df
-
 import http.client
 import json
 import requests
+import streamlit.components.v1 as components
 import time
 
 import streamlit as st
 import numpy as np
 import pandas as pd
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from datetime import timezone
 from collections import namedtuple
 from array import *
 ###############################################################
@@ -23,9 +26,13 @@ dataFrameData = {
     "Round": [],
     "Home Team": [],
     "Away Team": [],
-    "Score": [],
+    "Home Team Goals": [],
+    "Away Team Goals": [],
+    "Final Score": [],
     "Referee": [],
-    "Stadium": []
+    "Stadium": [],
+    "Date": [],
+    "Time UTC": []
 }
 ###############################################################
 st.set_page_config(
@@ -39,6 +46,7 @@ st.set_page_config(
     }
 )
 st.title(":soccer: 2022 Champions League")
+st.text("For this project we used the Football API: https://www.api-football.com/")
 ###############################################################
 class obj:
 
@@ -182,9 +190,13 @@ def fillDataFrame():
             dataFrameData["Round"].append(str(match.league.round))
             dataFrameData["Home Team"].append(str(match.teams.home.name))
             dataFrameData["Away Team"].append(str(match.teams.away.name))
-            dataFrameData["Score"].append(str(match.goals.home) + " - " + str(match.goals.away))
+            dataFrameData["Home Team Goals"].append(str(match.goals.home))
+            dataFrameData["Away Team Goals"].append(str(match.goals.away))
+            dataFrameData["Final Score"].append(str(match.goals.home) + " - " + str(match.goals.away))
             dataFrameData["Referee"].append(str(match.fixture.referee))
             dataFrameData["Stadium"].append(str(match.fixture.venue.name))
+            dataFrameData["Date"].append(str(match.fixture.date).split("T")[0])
+            dataFrameData["Time UTC"].append(str(match.fixture.date).split("T")[1].split("+")[0])
 
     tempDf = pd.DataFrame(dataFrameData)
 
@@ -272,11 +284,40 @@ bc = fillBarChart()
 #############################################################################
 
 
-
-st.sidebar.header("Filter Here:")
+st.sidebar.title("Filters")
 filteredTeams = st.sidebar.multiselect('Select Team(s):', options=teamOptions, default="Paris Saint Germain")
+filteredMatches = st.sidebar.radio("Filter Data Table by outcome: ", ("All", "Home Team Wins", "Away Team Wins", "Draw"))
+#displayStandings = st.sidebar.checkbox("Display Champions League Standings")
+
+datetime_str = '22/01/01'
+datetime_object = datetime.strptime(datetime_str, '%y/%m/%d')
+filteredFromDate = st.sidebar.date_input("From Date", value= datetime_object)
+filteredToDate = st.sidebar.date_input("To Date")
+
+#################################################################################
+
+# st.sidebar.title("Filters:")
+# filteredTeams = st.sidebar.multiselect('Select Team(s):', options=teamOptions, default="Paris Saint Germain")
 
 df_selection = df.query("`Home Team` == @filteredTeams | `Away Team` == @filteredTeams")
+
+match filteredMatches:
+    case "Home Team Wins":
+        df_selection = df_selection.query("`Home Team Goals` > `Away Team Goals`")
+    case "Away Team Wins":
+        df_selection = df_selection.query("`Home Team Goals` < `Away Team Goals`")
+    case "Draw":
+        df_selection = df_selection.query("`Home Team Goals` == `Away Team Goals`")
+
+#df_selection = df_selection.query("@filteredFromDate <= `Date`")
+#print(df_selection.where())
+df_selection["Date"] = pd.to_datetime(df_selection['Date'])
+df_selection["Date"] = df_selection['Date'].dt.date
+df_selection = df_selection.query("@filteredFromDate <= `Date` <= @filteredToDate")
+#df_selection = df_selection["Date"].between(filteredFromDate, filteredToDate)
+print(df_selection)
+
+#df_selection = df_selection.query("")
 #lc_selection = lc.query(index = "@filteredTeams")
 #lc_selection = lc.loc[0].loc[filteredTeams]
 lc_selection = lc.loc[:,filteredTeams]
@@ -285,11 +326,45 @@ bc_selection = bc.loc[:,filteredTeams]
 #lc_selection = lc_selection.
 #print(lc_selection)
 #print(venueList)
+st.header("Data Frame")
 st.dataframe(df_selection)
 #st.dataframe(bc_selection)
-st.bar_chart(bc_selection)
-#st.dataframe(lc_selection)
-st.line_chart(lc_selection)
+# st.header("Bar Chart - Goals per game")
+# st.bar_chart(bc_selection)
+# #st.dataframe(lc_selection)
+# st.header("Line Chart - Average Goals per game")
+# st.line_chart(lc_selection)
+
+
+with st.container():
+    st.write("---")
+    bar_column, line_column = st.columns((1,1))
+    with bar_column:
+        st.header("Bar Chart - Goals per game")
+        st.bar_chart(bc_selection)
+    with line_column:
+        st.header("Line Chart - Average Goals per game")
+        st.line_chart(lc_selection)
+    st.write("---")
+
+st.header("Champions League Standings")
+displayStandings = st.checkbox("Display Champions League Standings")
+if displayStandings:
+    HtmlFile = open("index.html", 'r', encoding='utf-8')
+    source_code = HtmlFile.read()
+    print(source_code)
+    components.html(source_code, height= 1000)
+st.write("---")
+
+st.header("Map - Stadiums Played")
+displayStandings = st.checkbox("Display Champions League Venue Map")
+if displayStandings:
+    mp = fillMap()
+    st.map(mp)
+st.write("---")
+
 # mp = fillMap()
 # st.map(mp)
+
+
 #print(mapData)
