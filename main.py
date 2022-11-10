@@ -1,23 +1,15 @@
-#import requests
-#7b6086e0fd1b597a93b193c8dc03a8df
 import http.client
 import json
 import requests
 import streamlit.components.v1 as components
-import matplotlib
-import time
-
 import streamlit as st
-import numpy as np
 import pandas as pd
 from datetime import datetime
 from streamlit_lottie import st_lottie
 from PIL import ImageColor
-from dateutil.relativedelta import relativedelta
-from datetime import timezone
-from collections import namedtuple
-from array import *
-###############################################################
+#############################################################################
+# Global Variables
+#############################################################################
 venueList = set()
 mapData = {
     "lat": [],
@@ -38,6 +30,8 @@ dataFrameData = {
     "Time UTC": []
 }
 ###############################################################
+# Initial page setup
+#############################################################################
 st.set_page_config(
     page_title= "2022 Champions League",
     page_icon = ":soccer:",
@@ -50,61 +44,19 @@ st.set_page_config(
 )
 st.title(":soccer: 2022 Champions League")
 st.text("For this project we used the Football API: https://www.api-football.com/")
-###############################################################
+
+#############################################################################
+# Obj to fill JSON data from requests
+#############################################################################
 class obj:
 
     # constructor
     def __init__(self, dict1):
         self.__dict__.update(dict1)
 
-################################################################
-
-# def updateDataFrame():
-#     dataFrameOBJ = st.empty()
-#     fillDataFrame()
-#     dataFrameOBJ= st.dataframe(dataFrameData)
-
-################################################################
-
-# def fillMap():
-#
-#     for venue in venueList:
-#
-#         # tempstr = "/venues?name=" + str(venue)
-#         # tempstr = tempstr.replace(" ", "%20")
-#         # tempstr = tempstr.encode('ascii', 'ignore').decode('ascii')
-#
-#         conn.request("GET", "/venues?id=" + str(venue), headers=headers)
-#
-#         res = conn.getresponse()
-#         data = res.read()
-#
-#         y = json.loads(data.decode("utf-8"))
-#         venuesListObj = json.loads(json.dumps(y), object_hook=obj)
-#
-#         ################################################################################
-#
-#         name = str(venuesListObj.response[0].name).replace(" ","%20")
-#         address = str(venuesListObj.response[0].address).replace(" ","%20")
-#         city = str(venuesListObj.response[0].city).replace(" ", "%20")
-#         country = str(venuesListObj.response[0].country).replace(" ", "%20")
-#
-#         url = "https://api.geoapify.com/v1/geocode/search?name=" + name +"&street=" + address +"&city="+ city +"&country="+ country +"&limit=1&format=json&apiKey=4136e494e7a14ee28368c1191cdac050"
-#
-#         response = requests.get(url)
-#         venueData = response.json()
-#         # print(response.json())
-#         # temp = json.loads(response.json())
-#         # venueData = json.loads(json.dumps(temp), object_hook=obj)
-#         #print(venueData)
-#         mapData["lat"].append(venueData["results"][0]["lat"])
-#         mapData["lon"].append(venueData["results"][0]["lon"])
-#
-#     tempDf = pd.DataFrame.from_dict(mapData, orient= 'columns')
-#     return tempDf
-
 ###############################################################################
-
+#Request to get Fixture Data
+#############################################################################
 conn = http.client.HTTPSConnection("v3.football.api-sports.io")
 
 headers = {
@@ -112,7 +64,6 @@ headers = {
     'x-rapidapi-key': "7b6086e0fd1b597a93b193c8dc03a8df"
     }
 
-#conn.request("GET", "/fixtures/rounds?season=2022&league=2", headers=headers)
 conn.request("GET", "/fixtures?league=2&season=2022", headers=headers)
 
 res = conn.getresponse()
@@ -121,10 +72,9 @@ data = res.read()
 temp = json.loads(data.decode("utf-8"))
 fixtureData = json.loads(json.dumps(temp), object_hook=obj)
 
-###############################################################################
-
-
 ###########################################################################
+# Request for List of teams
+#############################################################################
 
 conn.request("GET", "/teams?league=2&season=2022", headers=headers)
 
@@ -140,14 +90,15 @@ for team in teamsList.response:
     teamOptions.append(team.team.name)
 
 ###############################################################################
+#Fill Map Code
+#############################################################################
 def fillMap():
 
     for venue in venueList:
-
-        # tempstr = "/venues?name=" + str(venue)
-        # tempstr = tempstr.replace(" ", "%20")
-        # tempstr = tempstr.encode('ascii', 'ignore').decode('ascii')
-
+        ################################################################################
+        # Request to get adress of venues
+        ################################################################################
+        
         conn.request("GET", "/venues?id=" + str(venue), headers=headers)
 
         res = conn.getresponse()
@@ -167,10 +118,6 @@ def fillMap():
 
         response = requests.get(url)
         venueData = response.json()
-        # print(response.json())
-        # temp = json.loads(response.json())
-        # venueData = json.loads(json.dumps(temp), object_hook=obj)
-        #print(venueData)
         mapData["lat"].append(venueData["results"][0]["lat"])
         mapData["lon"].append(venueData["results"][0]["lon"])
 
@@ -178,9 +125,9 @@ def fillMap():
     return tempDf
 
 #############################################################################
-
+#Fill Data Frame Code
+#############################################################################
 def fillDataFrame():
-    #filteredData = []
 
     for match in fixtureData.response:
 
@@ -206,6 +153,8 @@ def fillDataFrame():
     return tempDf
 
 ###############################################################################
+#Fill Line Chart Code
+#############################################################################
 def fillLineChart():
     #filteredData = []
 
@@ -221,7 +170,6 @@ def fillLineChart():
             if homeTeam not in lineChartData:
                 lineChartData[homeTeam] = [homeTeamGoals]
             else:
-                #lineChartData[homeTeam].append(homeTeamGoals + lineChartData[homeTeam][len(lineChartData[homeTeam]) - 1])
                 lineChartData[homeTeam].append(homeTeamGoals + (lineChartData[homeTeam][len(lineChartData[homeTeam]) - 1] * len(lineChartData[homeTeam])))
                 lineChartData[homeTeam][len(lineChartData[homeTeam]) - 1] /= len(lineChartData[homeTeam])
 
@@ -229,23 +177,18 @@ def fillLineChart():
             if awayTeam not in lineChartData:
                 lineChartData[awayTeam] = [awayTeamGoals]
             else:
-                #lineChartData[awayTeam].append(awayTeamGoals + lineChartData[awayTeam][len(lineChartData[awayTeam]) - 1])
                 lineChartData[awayTeam].append(awayTeamGoals + (lineChartData[awayTeam][len(lineChartData[awayTeam]) - 1] * len(lineChartData[awayTeam])))
                 lineChartData[awayTeam][len(lineChartData[awayTeam]) - 1] /= len(lineChartData[awayTeam])
 
-    #print(lineChartData)
-    #tempDf = pd.DataFrame(lineChartData)
-    #tempDf = pd.DataFrame([lineChartData])
     tempDf = pd.DataFrame.from_dict(lineChartData, orient= 'index')
     tempDf = tempDf.transpose()
     tempDf = tempDf.rename(index=lambda x: int(x+1))
-    #print(tempDf)
-    #tempDf = pd.DataFrame.from_dict(lineChartData, orient='index')
 
     return tempDf
 
 ###############################################################################
-
+#Fill Bar Chart Code
+#############################################################################
 def fillBarChart():
 
     for match in fixtureData.response:
@@ -267,17 +210,14 @@ def fillBarChart():
             else:
                 barChartData[awayTeam].append(awayTeamGoals)
 
-    # print(lineChartData)
-    # tempDf = pd.DataFrame(lineChartData)
-    # tempDf = pd.DataFrame([lineChartData])
     tempDf = pd.DataFrame.from_dict(barChartData, orient='index')
     tempDf = tempDf.transpose()
     tempDf = tempDf.rename(index=lambda x: int(x + 1))
-    #print(tempDf)
-    # tempDf = pd.DataFrame.from_dict(lineChartData, orient='index')
 
     return tempDf
 
+#############################################################################
+#Lottie Image Code
 #############################################################################
 
 def load_lottieurl(url):
@@ -289,11 +229,15 @@ def load_lottieurl(url):
 lottie_coding = load_lottieurl("https://assets2.lottiefiles.com/packages/lf20_ky03n5aXvs.json")
 
 #############################################################################
+#Loading Data
+#############################################################################
 
 df = fillDataFrame()
 lc = fillLineChart()
 bc = fillBarChart()
 
+#############################################################################
+#Data Frame code
 #############################################################################
 
 filteredTeams = st.multiselect('Select Team(s):', options=teamOptions, default="Paris Saint Germain")
@@ -316,26 +260,9 @@ with st.container():
         datetime_object = datetime.strptime(datetime_str, '%y/%m/%d')
         filteredFromDate = st.date_input("From Date", value=datetime_object)
         color = st.color_picker('Pick a color for table:', '#FFFFFF')
-        #filteredToDate = st.date_input("To Date")
     with test_column:
         filteredToDate = st.date_input("To Date")
         textColor = st.color_picker('Pick a color for table text:', '#000000')
-    #st.write("---")
-
-#st.sidebar.title("Filters")
-#filteredTeams = st.sidebar.multiselect('Select Team(s):', options=teamOptions, default="Paris Saint Germain")
-#filteredMatches = st.sidebar.radio("Filter Data Table by outcome: ", ("All", "Home Team Wins", "Away Team Wins", "Draw"))
-#displayStandings = st.sidebar.checkbox("Display Champions League Standings")
-
-# datetime_str = '22/01/01'
-# datetime_object = datetime.strptime(datetime_str, '%y/%m/%d')
-# filteredFromDate = st.sidebar.date_input("From Date", value= datetime_object)
-# filteredToDate = st.sidebar.date_input("To Date")
-
-#################################################################################
-
-# st.sidebar.title("Filters:")
-# filteredTeams = st.sidebar.multiselect('Select Team(s):', options=teamOptions, default="Paris Saint Germain")
 
 df_selection = df.query("`Home Team` == @filteredTeams | `Away Team` == @filteredTeams")
 
@@ -360,7 +287,6 @@ with st.container():
         if len(filteredTeams) == 0:
             st.error('Error!! No team provided!!', icon="🚨")
         else:
-            #st.dataframe(df_selection)
             temp = ImageColor.getcolor(color,"RGB")
             tempText = ImageColor.getcolor(textColor, "RGB")
             colorStr = "rgb(" + str(temp[0]) + "," + str(temp[1]) + "," + str(temp[2]) + ")"
@@ -370,7 +296,9 @@ with st.container():
     with lottie_column:
         st_lottie(lottie_coding, width= 350, key="coding")
 
-
+#################################################################################
+# Bar Chart and Line Chart Code
+#################################################################################
 with st.container():
     st.write("---")
     bar_column, line_column = st.columns((1,1))
@@ -390,6 +318,10 @@ with st.container():
 
     st.write("---")
 
+#################################################################################
+# Champions League Standing Code
+#################################################################################
+
 st.header("Champions League Standings")
 displayStandings = st.checkbox("Display Champions League Standings")
 if displayStandings:
@@ -399,6 +331,10 @@ if displayStandings:
     components.html(source_code, height= 1000)
 st.write("---")
 
+#################################################################################
+# Map - Stadiums Played Code
+#################################################################################
+
 st.header("Map - Stadiums Played")
 displayStandings = st.checkbox("Display Champions League Venue Map")
 if displayStandings:
@@ -406,3 +342,11 @@ if displayStandings:
     st.map(mp)
 st.write("---")
 
+option = st.selectbox('How did you find the user interface?',('','Perfect', 'Good', 'Could be better', 'Bad'))
+
+#################################################################################
+# Feedback Code
+#################################################################################
+
+if option is not '':
+    st.write('Thank you for your feedback.')
